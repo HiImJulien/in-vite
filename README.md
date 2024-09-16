@@ -68,7 +68,40 @@ build artifact.
 
 ### Further configurations
 
-TODO: Once the struct `ViteOptions` is implemented, document it here.
+By default, Vite serves assets on `http://localhost:5173`. This and other
+defaults can be overwritten by constructing an instance of `Vite` with
+`ViteOptions`.
+
+Let's suppose, you're running Vite on port `8090`, you can construct an instance
+like this:
+
+```rs
+
+let opts = ViteOptions::default().host("http://localhost:8090");
+
+let vite = Vite::with_options(opts);
+```
+
+### Mode Configuration
+
+By default `in-vite` is assuming that you're running in development mode,
+unless any of the following environemt variables are set to `production`:
+
+```sh
+LOCO_ENV=production
+# or
+RAILS_ENV=production
+# or
+NODE_ENV=production
+```
+
+This behavior can be explicitly overwritten using `ViteOptions`:
+
+```rs
+let opts = ViteOptions::default().mode(ViteMode::Production);
+let vite = Vite::with_options(opts);
+```
+
 
 ## Integrations :world_map:
 
