@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Actix + Minijinja + Tailwind + Alpine + Vite</title>
+
+    {{ vite(resources=["src/js/main.ts"]) }}
+
+  </head>
+  <body class="h-full">
+    <div class="flex items-center justify-center h-full">
+      <div
+        x-data="clicker"
+        class="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+        <p class="mb-3 font-normal text-gray-700 dark:text-gray-400">
+          The button was clicked  <span x-text="count"></span> times
+        </p>
+
+      <button
+        @click="click"
+        type="button"
+        class="flex w-full justify-center items-center px-3 py-2 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+        Click me!
+      </button>
+      </div>
+
+    </div>
+  </body>
+</html>

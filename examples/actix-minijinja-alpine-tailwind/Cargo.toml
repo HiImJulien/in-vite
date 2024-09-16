@@ -1,0 +1,10 @@
+[package]
+name = "actix-minijinja-alpine-tailwind"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.9.0"
+minijinja = { version = "2.2.0", features = ["loader"] }
+in-vite = { path = "../..", features = ["minijinja"] }
+minijinja-autoreload = "2.2.0"
