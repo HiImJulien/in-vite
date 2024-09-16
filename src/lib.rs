@@ -344,7 +344,7 @@ mod test_tera {
 #[cfg(feature = "minijinja")]
 pub mod minijinja {
 
-    use minijinja::value::{from_args, FunctionArgs, Kwargs, Object, ObjectRepr};
+    use minijinja::value::{from_args, Kwargs, Object, ObjectRepr};
     use minijinja::{Error, Value};
     use std::sync::Arc;
 
