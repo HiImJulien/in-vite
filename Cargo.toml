@@ -8,6 +8,7 @@ minijinja = { version = "2.2.0", optional = true }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 tera = { version = "1.20.0", optional = true }
+thiserror = "1.0.63"
 
 [features]
 default = ["tera", "minijinja"]

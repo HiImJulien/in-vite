@@ -2,6 +2,16 @@
 //! integrate Vite into Rust backend projects.
 
 mod lib {
+    use crate::vite5::Manifest;
+
+    #[derive(thiserror::Error, Debug)]
+    pub enum Error {
+        #[error(transparent)]
+        Io(#[from] std::io::Error),
+        #[error(transparent)]
+        Json(#[from] serde_json::Error),
+    }
+
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub(crate) enum Resource<'a> {
         Stylesheet(&'a str),
@@ -44,6 +54,82 @@ mod lib {
 
         return mode == "development";
     }
+
+    /// Encapsulates the default configuration options as well as
+    /// the logic for resolving resources from vite.
+    #[derive(Debug)]
+    pub struct Vite {
+        pub is_development_mode: Option<bool>,
+        pub host: String,
+        pub manifest: Option<String>,
+    }
+
+    impl<'a> Vite {
+        pub fn new(
+            is_development_mode: Option<bool>,
+            host: String,
+            manifest: Option<String>,
+        ) -> Self {
+            Vite {
+                is_development_mode,
+                host,
+                manifest,
+            }
+        }
+
+        fn make_development_html(&'a self) -> String {
+            let host = &self.host;
+            vec![
+                // "<!-- Vite Development -->".to_string(),
+                format!(r#"<script type="module" src="{host}/@vite/client"></script>"#),
+                format!(r#"<script type="module" src="{host}/@vite/main.js"></script>"#),
+            ]
+            .join("\n")
+        }
+
+        pub fn make_html(&'a self, entrypoints: Vec<&'a str>) -> Result<String, Error> {
+            let is_development_mode = self
+                .is_development_mode
+                .unwrap_or_else(|| is_development_mode());
+
+            if is_development_mode {
+                return Ok(self.make_development_html());
+            }
+
+            let manifest: Manifest = match &self.manifest {
+                Some(manifest) => serde_json::from_str(&manifest)?,
+                None => {
+                    let file = std::fs::File::open("dist/.vite/manifest.json")?;
+                    serde_json::from_reader(file)?
+                }
+            };
+
+            let mut resources: Vec<Resource> = entrypoints
+                .iter()
+                .map(|entrypoint| manifest.resolve_resources(entrypoint))
+                .flatten()
+                .collect();
+
+            resources.sort();
+            let html = resources
+                .into_iter()
+                .map(|resource| resource.to_html())
+                .collect::<Vec<String>>()
+                .join("\n");
+
+            Ok(html)
+        }
+    }
+
+    impl Default for Vite {
+        fn default() -> Self {
+            Vite {
+                is_development_mode: None,
+                host: "http://localhost:5173".to_string(),
+                manifest: None,
+            }
+        }
+    }
 }
 
 mod vite5 {
@@ -56,7 +142,6 @@ mod vite5 {
     pub(crate) struct Manifest(HashMap<String, Chunk>);
 
     impl<'a> Manifest {
-
         /// Returns a list of resources required to include given entrypoint.
         pub fn resolve_resources(&'a self, entrypoint: &'a str) -> Vec<Resource<'a>> {
             let Some(chunk) = self.0.get(entrypoint) else {
@@ -179,96 +264,28 @@ pub mod tera {
     use std::collections::HashMap;
     use tera::{from_value, to_value, Function, Result, Value};
 
-    use crate::lib::{is_development_mode, Resource};
-    use crate::vite5::Manifest;
-
-    pub struct Vite {
-        is_development_mode: Option<bool>,
-        vite_host: String,
-        manifest: Option<String>,
-    }
-
-    impl Vite {
-        pub fn new(
-            is_development_mode: Option<bool>,
-            vite_host: String,
-            manifest: Option<String>,
-        ) -> Self {
-            Vite {
-                is_development_mode,
-                vite_host,
-                manifest,
-            }
-        }
-    }
-
-    impl Default for Vite {
-        fn default() -> Self {
-            Vite {
-                is_development_mode: None,
-                vite_host: "http://localhost:5173".to_string(),
-                manifest: None,
-            }
-        }
-    }
+    use crate::lib::Vite;
 
     impl Function for Vite {
         fn call(&self, args: &HashMap<String, tera::Value>) -> Result<Value> {
-            // Despite of no relevance for development mode,
-            // we check it here to find errors during development.
             let Some(resources) = args.get("resources") else {
                 return Err("Missing argument 'resources' in vite function.".into());
             };
 
-            let is_development_mode = self
-                .is_development_mode
-                .unwrap_or_else(|| is_development_mode());
-
-            if is_development_mode {
-                let host = &self.vite_host;
-                let code = format!(
-                    r#"
-<!-- Injected by in-vite (development) -->
-<script type="module" src="{host}/@vite/client"></script>
-<script type="module" src="{host}/@vite/main.js"></script>
-
-"#
-                );
-
-                return Ok(to_value(code)?);
-            }
-
-            let mut entrypoints: Vec<String> = vec![];
+            let entrypoints: Vec<String>;
             if resources.is_array() {
                 entrypoints = from_value(resources.clone())?;
+            } else if resources.is_string() {
+                entrypoints = vec![from_value(resources.clone())?];
+            } else {
+                return Err(
+                    "The argument 'resources' must be either a string or an array of strings."
+                        .into(),
+                );
             }
 
-            if resources.is_string() {
-                let entrypoint: String = from_value(resources.clone())?;
-                entrypoints.push(entrypoint);
-            }
-
-            let manifest: Manifest = match &self.manifest {
-                Some(manifest) => serde_json::from_str(&manifest)?,
-                None => {
-                    let file = std::fs::File::open("dist/.vite/manifest.json")?;
-                    serde_json::from_reader(file)?
-                }
-            };
-
-            let mut resources: Vec<Resource> = entrypoints
-                .iter()
-                .map(|entrypoint| manifest.resolve_resources(entrypoint))
-                .flatten()
-                .collect();
-
-            resources.sort();
-
-            let code = resources
-                .into_iter()
-                .map(|resource| resource.to_html())
-                .collect::<Vec<String>>()
-                .join("\n");
+            let entrypoints = entrypoints.iter().map(|e| e.as_str()).collect();
+            let code = self.make_html(entrypoints).unwrap();
 
             Ok(to_value(code)?)
         }
@@ -281,7 +298,7 @@ pub mod tera {
 
 #[cfg(all(feature = "tera", test))]
 mod test_tera {
-    use super::tera::Vite;
+    use super::lib::Vite;
 
     const SAMPLE_MANIFEST: &str = include_str!("../test/sample_manifest.json");
 
@@ -292,12 +309,8 @@ mod test_tera {
 
         tera.register_function("vite", vite);
         let result = tera.render_str(r#"{{ vite(resources="app.js") }}"#, &tera::Context::new());
-        let expected = r#"
-<!-- Injected by in-vite (development) -->
-<script type="module" src="http://localhost:5173/@vite/client"></script>
-<script type="module" src="http://localhost:5173/@vite/main.js"></script>
-
-"#;
+        let expected = r#"<script type="module" src="http://localhost:5173/@vite/client"></script>
+<script type="module" src="http://localhost:5173/@vite/main.js"></script>"#;
 
         assert!(matches!(result, Ok(_)));
         assert_eq!(result.unwrap(), expected);
@@ -323,7 +336,6 @@ mod test_tera {
 <script type="module" src="assets/foo-BRBmoGS9.js"></script>
 <link rel="modulepreload" href="assets/shared-B7PI925R.js" />"#;
 
-
         assert!(matches!(result, Ok(_)));
         assert_eq!(result.unwrap(), expected);
     }
@@ -332,7 +344,77 @@ mod test_tera {
 #[cfg(feature = "minijinja")]
 pub mod minijinja {
 
+    use minijinja::value::{from_args, FunctionArgs, Kwargs, Object, ObjectRepr};
+    use minijinja::{Error, Value};
+    use std::sync::Arc;
 
+    use crate::lib::Vite;
 
+    type Result<T> = std::result::Result<T, Error>;
+
+    impl Object for Vite {
+        fn repr(self: &Arc<Self>) -> ObjectRepr {
+            ObjectRepr::Plain
+        }
+
+        fn call(
+            self: &Arc<Self>,
+            _state: &minijinja::State<'_, '_>,
+            args: &[minijinja::Value],
+        ) -> Result<Value> {
+            let (_, kwargs) = from_args::<(&[Value], Kwargs)>(&args)?;
+
+            // The resources passed here are treated as entrypoint for vite.
+            let entrypoints: Vec<String> = kwargs.get("resources")?;
+            let entrypoints = entrypoints.iter().map(|e| e.as_str()).collect();
+
+            let code = self.make_html(entrypoints).unwrap();
+            Ok(Value::from(code))
+        }
+
+        fn is_true(self: &Arc<Self>) -> bool {
+            true
+        }
+    }
 }
 
+#[cfg(all(feature = "minijinja", test))]
+pub mod test_minijina {
+    use super::lib::Vite;
+    use minijinja::Environment;
+    use minijinja::Value;
+
+    const SAMPLE_MANIFEST: &str = include_str!("../test/sample_manifest.json");
+
+    #[test]
+    fn can_minijinja_inject_development() {
+        let vite = Vite::new(Some(true), "http://localhost:5173".to_string(), Some(SAMPLE_MANIFEST.to_string()));
+        let mut env = Environment::new();
+        env.add_global("vite", Value::from_object(vite));
+        let result = env
+            .render_str(r#"{{ vite(resources=["views/foo.js"]) }}"#, Value::UNDEFINED)
+            .expect("Should work.");
+
+        let expected = r#"<script type="module" src="http://localhost:5173/@vite/client"></script>
+<script type="module" src="http://localhost:5173/@vite/main.js"></script>"#;
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn can_minijinja_inject_production() {
+        let vite = Vite::new(Some(false), "http://localhost:5173".to_string(), Some(SAMPLE_MANIFEST.to_string()));
+        let mut env = Environment::new();
+        env.add_global("vite", Value::from_object(vite));
+        let result = env
+            .render_str(r#"{{ vite(resources=["views/foo.js"]) }}"#, Value::UNDEFINED)
+            .expect("Should work.");
+
+        let expected = r#"<link rel="stylesheet" href="assets/foo-5UjPuW-k.css" />
+<link rel="stylesheet" href="assets/shared-ChJ_j-JJ.css" />
+<script type="module" src="assets/foo-BRBmoGS9.js"></script>
+<link rel="modulepreload" href="assets/shared-B7PI925R.js" />"#;
+
+        assert_eq!(result, expected);
+    }
+}
