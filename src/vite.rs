@@ -148,7 +148,7 @@ impl<'a> Vite {
         let host = &self.host;
         vec![
             format!(r#"<script type="module" src="{host}/@vite/client"></script>"#),
-            format!(r#"<script type="module" src="{host}/@vite/main.js"></script>"#),
+            format!(r#"<script type="module" src="{host}/src/js/main.ts"></script>"#),
         ]
         .join("\n")
     }

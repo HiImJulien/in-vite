@@ -10,6 +10,7 @@ serde_json = "1.0.128"
 tera = { version = "1.20.0", optional = true }
 thiserror = "1.0.63"
 
+
 [features]
 default = ["tera", "minijinja"]
 tera = ["dep:tera"]
