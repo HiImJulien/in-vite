@@ -45,7 +45,7 @@ impl Object for Vite {
         let entrypoints = entrypoints.iter().map(|e| e.as_str()).collect();
 
         let code = self.to_html(entrypoints).unwrap();
-        Ok(Value::from(code))
+        Ok(Value::from_safe_string(code))
     }
 
     fn is_true(self: &Arc<Self>) -> bool {
