@@ -31,7 +31,7 @@ fn main() {
 
 > [!IMPORTANT]
 > `in-vite` does not setup Vite by itself, rather it expects an already
-> setup isntance.
+> setup instance.
 > On how to setup Vite read further.
 
 ### Setting up Vite :construction:
