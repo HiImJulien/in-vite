@@ -117,7 +117,7 @@ impl<'a> Vite {
 
     pub fn to_html(&'a self, entrypoints: Vec<&'a str>) -> Result<String, Error> {
         if self.mode == ViteMode::Development {
-            return Ok(self.to_development_html());
+            return Ok(self.to_development_html(entrypoints));
         }
 
         let manifest: Manifest = match &self.manifest_source {
@@ -144,12 +144,17 @@ impl<'a> Vite {
         Ok(html)
     }
 
-    fn to_development_html(&'a self) -> String {
+    fn to_development_html(&'a self, entrypoints: Vec<&'a str>) -> String {
         let host = &self.host;
-        vec![
+        let mut lines: Vec<String> = vec![
             format!(r#"<script type="module" src="{host}/@vite/client"></script>"#),
-            format!(r#"<script type="module" src="{host}/src/js/main.ts"></script>"#),
-        ]
-        .join("\n")
+        ];
+
+        entrypoints
+            .iter()
+            .map(|entry| format!(r#"<script type="module" src="{host}/{entry}"></script>"#))
+            .for_each(|line| lines.push(line));
+
+        lines.join("\n")
     }
 }
