@@ -8,6 +8,7 @@ license = "MIT"
 keywords = ["vite", "web-dev", "bundler", "rollup"]
 description = "Vite integration for your Rust backend."
 categories = ["development-tools", "web-programming"]
+authors = ["Julian Kirsch <contact@juliankirsch.me>"]
 
 [dependencies]
 minijinja = { version = "2.2.0", optional = true }
