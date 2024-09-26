@@ -146,9 +146,26 @@ impl<'a> Vite {
 
     fn to_development_html(&'a self, entrypoints: Vec<&'a str>) -> String {
         let host = &self.host;
-        let mut lines: Vec<String> = vec![
-            format!(r#"<script type="module" src="{host}/@vite/client"></script>"#),
-        ];
+        let mut lines: Vec<String> = vec![format!(
+            r#"<script type="module" src="{host}/@vite/client"></script>"#
+        )];
+
+        let is_react = entrypoints
+            .iter()
+            .any(|&entrypoint| entrypoint.ends_with(".jsx"));
+        if is_react {
+            lines.push(format!(
+                r#"
+                    <script type="module">
+                        import RefreshRuntime from "{host}/@react-refresh"
+                        RefreshRuntime.injectIntoGlobalHook(window)
+                        window.$RefreshReg$ = () => {{}}
+                        window.$RefreshSig$ = () => (type) => type
+                        window.__vite_plugin_react_preamble_installed__ = true
+                    </script>
+                    "#,
+            ));
+        }
 
         entrypoints
             .iter()

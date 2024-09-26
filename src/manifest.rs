@@ -95,7 +95,7 @@ impl<'a> Manifest {
 
         if key.ends_with(".css") {
             resources.push(Resource::Stylesheet(&chunk.file));
-        } else if key.ends_with(".js") {
+        } else if key.ends_with(".js") || key.ends_with(".jsx") {
             resources.push(Resource::Module(&chunk.file));
         }
     }
