@@ -115,6 +115,10 @@ impl<'a> Vite {
         }
     }
 
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
     pub fn to_html(&'a self, entrypoints: Vec<&'a str>) -> Result<String, Error> {
         if self.mode == ViteMode::Development {
             return Ok(self.to_development_html(entrypoints));
@@ -150,28 +154,38 @@ impl<'a> Vite {
             r#"<script type="module" src="{host}/@vite/client"></script>"#
         )];
 
-        let is_react = entrypoints
-            .iter()
-            .any(|&entrypoint| entrypoint.ends_with(".jsx"));
-        if is_react {
-            lines.push(format!(
-                r#"
-                    <script type="module">
-                        import RefreshRuntime from "{host}/@react-refresh"
-                        RefreshRuntime.injectIntoGlobalHook(window)
-                        window.$RefreshReg$ = () => {{}}
-                        window.$RefreshSig$ = () => (type) => type
-                        window.__vite_plugin_react_preamble_installed__ = true
-                    </script>
-                    "#,
-            ));
-        }
-
         entrypoints
             .iter()
             .map(|entry| format!(r#"<script type="module" src="{host}/{entry}"></script>"#))
             .for_each(|line| lines.push(line));
 
         lines.join("\n")
+    }
+}
+
+#[derive(Debug)]
+pub struct ViteReactRefresh {
+    host: String,
+}
+
+impl ViteReactRefresh {
+    pub fn new<S: AsRef<str>>(host: S) -> Self {
+        Self {
+            host: host.as_ref().to_owned(),
+        }
+    }
+
+    pub fn react_refresh(&self) -> String {
+        let host = &self.host;
+
+        format!(
+            r#"<script type="module">
+import RefreshRuntime from "{host}/@react-refresh"
+RefreshRuntime.injectIntoGlobalHook(window)
+window.$RefreshReg$ = () => {{}}
+window.$RefreshSig$ = () => (type) => type
+window.__vite_plugin_react_preamble_installed__ = true
+</script>"#
+        )
     }
 }

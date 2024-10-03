@@ -1,7 +1,7 @@
 //! This module implements the necessary traits required to make `crate::Vite`
 //! callable in tera templates.
 
-use crate::vite::Vite;
+use crate::vite::{Vite, ViteReactRefresh};
 
 use std::collections::HashMap;
 use tera::{from_value, to_value, Function, Result, Value};
@@ -55,11 +55,43 @@ impl Function for Vite {
     }
 }
 
+/// Allows for instances of Vite to be bound as a function.
+///
+/// # Examples
+///
+/// ```
+/// use in_vite::{Vite, ViteReactRefresh};
+/// use tera::{Tera, Context, Result};
+///
+/// fn main() -> Result<()> {
+///     let vite = Vite::default();
+///     let mut tera = Tera::default();
+///     let vite_react_refresh = ViteReactRefresh::new(vite.host());
+///     tera.register_function("vite_react_refresh", vite_react_refresh);
+///
+///     let ctx = Context::new();
+///     let template = tera.render_str(r#"{{ vite_react_refresh() }}"#, &ctx);
+///
+///     Ok(())
+/// }
+///
+/// ```
+///
+impl Function for ViteReactRefresh {
+    fn is_safe(&self) -> bool {
+        true
+    }
+
+    fn call(&self, _args: &HashMap<String, Value>) -> Result<Value> {
+        Ok(to_value(self.react_refresh())?)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::vite::{ViteOptions, ViteMode};
+    use crate::vite::{ViteMode, ViteOptions};
 
-    use super::Vite;
+    use super::{Vite, ViteReactRefresh};
 
     const SAMPLE_MANIFEST: &str = include_str!("../../test/sample_manifest.json");
 
@@ -75,7 +107,7 @@ mod test {
         tera.register_function("vite", vite);
         let result = tera.render_str(r#"{{ vite(resources="app.js") }}"#, &tera::Context::new());
         let expected = r#"<script type="module" src="http://localhost:5173/@vite/client"></script>
-<script type="module" src="http://localhost:5173/@vite/main.js"></script>"#;
+<script type="module" src="http://localhost:5173/app.js"></script>"#;
 
         assert!(matches!(result, Ok(_)));
         assert_eq!(result.unwrap(), expected);
@@ -100,6 +132,31 @@ mod test {
 <link rel="stylesheet" href="assets/shared-ChJ_j-JJ.css" />
 <script type="module" src="assets/foo-BRBmoGS9.js"></script>
 <link rel="modulepreload" href="assets/shared-B7PI925R.js" />"#;
+
+        assert!(matches!(result, Ok(_)));
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn can_tera_inject_react_refresh_development() {
+        let opts = ViteOptions::default()
+            .mode(ViteMode::Development)
+            .source(Some(SAMPLE_MANIFEST.to_string()));
+
+        let vite = Vite::with_options(opts);
+        let vite_react_refresh = ViteReactRefresh::new(vite.host());
+        let mut tera = tera::Tera::default();
+
+        tera.register_function("vite_react_refresh", vite_react_refresh);
+        let result = tera.render_str(r#"{{ vite_react_refresh() }}"#, &tera::Context::new());
+        println!("{:#?}", result);
+        let expected = r#"<script type="module">
+import RefreshRuntime from "http://localhost:5173/@react-refresh"
+RefreshRuntime.injectIntoGlobalHook(window)
+window.$RefreshReg$ = () => {}
+window.$RefreshSig$ = () => (type) => type
+window.__vite_plugin_react_preamble_installed__ = true
+</script>"#;
 
         assert!(matches!(result, Ok(_)));
         assert_eq!(result.unwrap(), expected);
