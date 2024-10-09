@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::manifest::Manifest;
 use crate::resource::Resource;
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum ViteMode {
     #[default]
     Development,
@@ -119,6 +119,10 @@ impl<'a> Vite {
         &self.host
     }
 
+    pub fn mode(&self) -> &ViteMode {
+        &self.mode
+    }
+
     pub fn to_html(&'a self, entrypoints: Vec<&'a str>) -> Result<String, Error> {
         if self.mode == ViteMode::Development {
             return Ok(self.to_development_html(entrypoints));
@@ -166,26 +170,32 @@ impl<'a> Vite {
 #[derive(Debug)]
 pub struct ViteReactRefresh {
     host: String,
+    mode: ViteMode,
 }
 
 impl ViteReactRefresh {
-    pub fn new<S: AsRef<str>>(host: S) -> Self {
+    pub fn new<S: AsRef<str>>(host: S, mode: &ViteMode) -> Self {
         Self {
             host: host.as_ref().to_owned(),
+            mode: mode.to_owned(),
         }
     }
 
     pub fn react_refresh(&self) -> String {
-        let host = &self.host;
+        if self.mode == ViteMode::Development {
+            let host = &self.host;
 
-        format!(
-            r#"<script type="module">
+            format!(
+                r#"<script type="module">
 import RefreshRuntime from "{host}/@react-refresh"
 RefreshRuntime.injectIntoGlobalHook(window)
 window.$RefreshReg$ = () => {{}}
 window.$RefreshSig$ = () => (type) => type
 window.__vite_plugin_react_preamble_installed__ = true
 </script>"#
-        )
+            )
+        } else {
+            "".to_string()
+        }
     }
 }

@@ -64,7 +64,7 @@ impl Object for Vite {
 ///
 /// fn main() -> Result<(), Error> {
 ///     let vite = Vite::default();
-///     let vite_react_refresh = ViteReactRefresh::new(vite.host());
+///     let vite_react_refresh = ViteReactRefresh::new(vite.host(), vite.mode());
 ///     let mut env = Environment::new();
 ///     env.add_global("vite_react_refresh", Value::from_object(vite_react_refresh));
 ///
@@ -153,7 +153,7 @@ mod test {
             .source(Some(SAMPLE_MANIFEST.to_string()));
 
         let vite = Vite::with_options(opts);
-        let vite_react_refresh = ViteReactRefresh::new(vite.host());
+        let vite_react_refresh = ViteReactRefresh::new(vite.host(), vite.mode());
         let mut env = Environment::new();
         env.add_global("vite_react_refresh", Value::from_object(vite_react_refresh));
         let result = env
@@ -167,6 +167,25 @@ window.$RefreshReg$ = () => {}
 window.$RefreshSig$ = () => (type) => type
 window.__vite_plugin_react_preamble_installed__ = true
 </script>"#;
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn minijinja_injects_nothing_react_refresh_production() {
+        let opts = ViteOptions::default()
+            .mode(ViteMode::Production)
+            .source(Some(SAMPLE_MANIFEST.to_string()));
+
+        let vite = Vite::with_options(opts);
+        let vite_react_refresh = ViteReactRefresh::new(vite.host(), vite.mode());
+        let mut env = Environment::new();
+        env.add_global("vite_react_refresh", Value::from_object(vite_react_refresh));
+        let result = env
+            .render_str(r#"{{ vite_react_refresh() }}"#, Value::UNDEFINED)
+            .expect("Should work.");
+
+        let expected = "";
 
         assert_eq!(result, expected);
     }
