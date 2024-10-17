@@ -20,10 +20,10 @@ impl<'a> Resource<'a> {
     /// the resource.
     pub fn to_html(&'a self) -> String {
         match *self {
-            Self::Stylesheet(uri) => format!(r#"<link rel="stylesheet" href="{uri}" />"#),
-            Self::Module(uri) => format!(r#"<script type="module" src="{uri}"></script>"#),
+            Self::Stylesheet(uri) => format!(r#"<link rel="stylesheet" href="/{uri}" />"#),
+            Self::Module(uri) => format!(r#"<script type="module" src="/{uri}"></script>"#),
             Self::PreloadModule(uri) => {
-                format!(r#"<link rel="modulepreload" href="{uri}" />"#)
+                format!(r#"<link rel="modulepreload" href="/{uri}" />"#)
             }
         }
     }
