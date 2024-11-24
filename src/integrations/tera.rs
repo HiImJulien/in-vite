@@ -55,7 +55,7 @@ impl Function for Vite {
     }
 }
 
-/// Allows for instances of Vite to be bound as a function.
+/// Allows for instances of ViteReactRefresh to be bound as a function.
 ///
 /// # Examples
 ///
@@ -66,7 +66,7 @@ impl Function for Vite {
 /// fn main() -> Result<()> {
 ///     let vite = Vite::default();
 ///     let mut tera = Tera::default();
-///     let vite_react_refresh = ViteReactRefresh::new(vite.host());
+///     let vite_react_refresh = ViteReactRefresh::new(vite.host(), vite.mode());
 ///     tera.register_function("vite_react_refresh", vite_react_refresh);
 ///
 ///     let ctx = Context::new();
@@ -144,12 +144,11 @@ mod test {
             .source(Some(SAMPLE_MANIFEST.to_string()));
 
         let vite = Vite::with_options(opts);
-        let vite_react_refresh = ViteReactRefresh::new(vite.host());
+        let vite_react_refresh = ViteReactRefresh::new(vite.host(), vite.mode());
         let mut tera = tera::Tera::default();
 
         tera.register_function("vite_react_refresh", vite_react_refresh);
         let result = tera.render_str(r#"{{ vite_react_refresh() }}"#, &tera::Context::new());
-        println!("{:#?}", result);
         let expected = r#"<script type="module">
 import RefreshRuntime from "http://localhost:5173/@react-refresh"
 RefreshRuntime.injectIntoGlobalHook(window)
@@ -157,6 +156,24 @@ window.$RefreshReg$ = () => {}
 window.$RefreshSig$ = () => (type) => type
 window.__vite_plugin_react_preamble_installed__ = true
 </script>"#;
+
+        assert!(matches!(result, Ok(_)));
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn tera_injects_nothing_react_refresh_production() {
+        let opts = ViteOptions::default()
+            .mode(ViteMode::Production)
+            .source(Some(SAMPLE_MANIFEST.to_string()));
+
+        let vite = Vite::with_options(opts);
+        let vite_react_refresh = ViteReactRefresh::new(vite.host(), vite.mode());
+        let mut tera = tera::Tera::default();
+
+        tera.register_function("vite_react_refresh", vite_react_refresh);
+        let result = tera.render_str(r#"{{ vite_react_refresh() }}"#, &tera::Context::new());
+        let expected = "";
 
         assert!(matches!(result, Ok(_)));
         assert_eq!(result.unwrap(), expected);
