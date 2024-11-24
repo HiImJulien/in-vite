@@ -31,15 +31,6 @@ impl Default for ViteOptions {
 }
 
 impl ViteOptions {
-    fn new() -> Self {
-        ViteOptions {
-            host: "".to_string(),
-            manifest_source: None,
-            manifest_path: "dist/.vite/manifest.json".to_string(),
-            mode: ViteMode::default(),
-        }
-    }
-
     /// Sets the host, from which Vite's development scripts should be loaded.
     pub fn host(mut self, host: &str) -> Self {
         self.host = host.to_string();
