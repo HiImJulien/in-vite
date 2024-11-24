@@ -1,6 +1,6 @@
 [package]
 name = "in-vite"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/HiImJulien/in-vite"
